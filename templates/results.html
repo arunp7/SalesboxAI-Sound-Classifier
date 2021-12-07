@@ -1,0 +1,15 @@
+<html>
+<link rel= "stylesheet" type= "text/css" href= "{{url_for('static',filename='styles/results.css')}}">
+<title>Results</title>
+  <div class="center-screen">
+    <div class="title">
+      <h1>Results </h1>
+    </div>
+    <div class="text">
+      <p> The Sound identified for "{{filename}}" is the follwing: </p>
+    <div class="items">   
+        <p>  {{ predictions_to_render }} </p>
+    </div>
+    </div>
+  </div>
+</html>
