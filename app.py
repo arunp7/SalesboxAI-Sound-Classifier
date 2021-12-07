@@ -1,8 +1,8 @@
 import os
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from keras.utils import to_categorical
-from keras.models import load_model
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import load_model
 from sklearn.preprocessing import LabelEncoder
 from werkzeug.utils import secure_filename
 from flask import Flask, flash, request, redirect, url_for, render_template
