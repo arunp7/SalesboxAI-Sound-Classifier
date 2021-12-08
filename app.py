@@ -16,7 +16,7 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'wav', 'mp3',"ogg"}
 
 print("Extracting features..")
-features_df1 = pd.read_csv("Features.csv") 
+features_df1 = pd.read_csv("features.csv") 
 print("Extracting features done..")
 
 # Create Flask App
