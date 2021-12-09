@@ -10,9 +10,14 @@ import pandas as pd
 import librosa
 import soundfile as sf
 import numpy as np
-
+from os import path
 
 UPLOAD_FOLDER = 'uploads'
+# Check if the upload folder exists and if not create one in the root directory
+if(path.exists(UPLOAD_FOLDER) == False):
+    os.mkdir(UPLOAD_FOLDER)
+    print("Uploads directory created")
+
 ALLOWED_EXTENSIONS = {'wav', 'mp3',"ogg"}
 
 print("Extracting features..")
