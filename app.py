@@ -11,6 +11,7 @@ import librosa
 import soundfile as sf
 import numpy as np
 from os import path
+import pathlib
 
 UPLOAD_FOLDER = 'uploads'
 # Check if the upload folder exists and if not create one in the root directory
@@ -32,15 +33,31 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+def convert_to_std_format(file_name):
+    f_name = pathlib.Path(file_name).stem
+    f_extn = pathlib.Path(file_name).suffix
+    
+    if( f_extn != ".ogg"):
+        o_data, o_sr = sf.read(file_name)
+        c_file_name = f_name + ".ogg"
+        sf.write(c_file_name, o_data, o_sr)        
+        return c_file_name
+    else:
+        return file_name
+
 
 def get_features(file_name):
-
-    if file_name: 
-        X, sample_rate = sf.read(file_name, dtype='float32')
+        
+    s_file = convert_to_std_format(file_name)
+    if s_file:
+        X, sample_rate = librosa.load(s_file, mono=True,dtype='float32')
 
     # mfcc (mel-frequency cepstrum)
     mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
     mfccs_scaled = np.mean(mfccs.T,axis=0)
+
+    if(s_file != file_name):
+        os.remove(s_file)
     return mfccs_scaled
 
 
@@ -86,7 +103,8 @@ def class_label(argument):
         1: "Rain",
         2: "Pressure-Cooker",
         3: "Baby-Cry",
-        4: "Water=Overflow"
+        4: "Water=Overflow",
+        5: "Background-Sound"
     }
     return classes.get(argument, "Unidentified Sound")
 
