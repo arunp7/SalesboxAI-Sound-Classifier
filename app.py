@@ -12,6 +12,8 @@ import soundfile as sf
 import numpy as np
 from os import path
 import pathlib
+from flask import json
+from werkzeug.exceptions import HTTPException
 
 UPLOAD_FOLDER = 'uploads'
 # Check if the upload folder exists and if not create one in the root directory
@@ -46,20 +48,31 @@ def convert_to_std_format(file_name):
         return file_name
 
 
+def check_duration(file_name):
+    y,sr = librosa.load(file_name)
+    dur = librosa.get_duration(y=y, sr=sr)
+    if(dur>20):
+        return False
+    else:
+        return True
+
+
 def get_features(file_name):
-        
-    s_file = convert_to_std_format(file_name)
-    if s_file:
-        X, sample_rate = librosa.load(s_file, mono=True,dtype='float32')
+    dur = check_duration(file_name)
+    if(dur):
+        s_file = convert_to_std_format(file_name)
+        if s_file:
+            X, sample_rate = librosa.load(s_file, mono=True,dtype='float32')
 
-    # mfcc (mel-frequency cepstrum)
-    mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
-    mfccs_scaled = np.mean(mfccs.T,axis=0)
+        # mfcc (mel-frequency cepstrum)
+        mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
+        mfccs_scaled = np.mean(mfccs.T,axis=0)
 
-    if(s_file != file_name):
-        os.remove(s_file)
-    return mfccs_scaled
-
+        if(s_file != file_name):
+            os.remove(s_file)        
+        return mfccs_scaled
+    else:
+        return None
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -99,12 +112,12 @@ def get_numpy_array(features_df):
 
 def class_label(argument):
     classes = {
-        0: "Doorbell",
-        1: "Rain",
-        2: "Pressure-Cooker",
-        3: "Baby-Cry",
-        4: "Water=Overflow",
-        5: "Background-Sound"
+        0: "DOORBELL",
+        1: "RAIN",
+        2: "PRESSURE-COOKER",
+        3: "BABY-CRY",
+        4: "WATER=OVERFLOW",
+        5: "BACKGROUND-SOUND"
     }
     return classes.get(argument, "Unidentified Sound")
 
@@ -116,18 +129,35 @@ def classify_and_show_results():
     X, y, le = get_numpy_array(features_df1)
     model = load_model("trained_cnn.h5")
     prediction_feature = get_features(filename)
-    prediction_feature = np.expand_dims(np.array([prediction_feature]),axis=2)
-    predicted_vector = model.predict_classes(prediction_feature)
-    predicted_class = le.inverse_transform(predicted_vector)
-    final_pred = class_label(predicted_class[0])
+    if(prediction_feature.size != 0):
+        prediction_feature = np.expand_dims(np.array([prediction_feature]),axis=2)
+        predicted_vector = model.predict_classes(prediction_feature)
+        predicted_class = le.inverse_transform(predicted_vector)
+        final_pred = class_label(predicted_class[0])
 
-    # Delete uploaded file
-    os.remove(filename)
-    # Render results
-    return render_template("results.html",
-        filename=filename,
-        predictions_to_render=final_pred)
+        # Delete uploaded file
+        os.remove(filename)
+        # Render results
+        return render_template("results.html",
+            filename=filename,
+            predictions_to_render=final_pred)
 
+    else:
+        return "File size Exceeded"
+
+@app.errorhandler(HTTPException)
+def handle_exception(e):
+    """Return JSON instead of HTML for HTTP errors."""
+    # start with the correct headers and status code from the error
+    response = e.get_response()
+    # replace the body with JSON
+    response.data = json.dumps({
+        "code": e.code,
+        "name": e.name,
+        "description": e.description,
+    })
+    response.content_type = "application/json"
+    return response
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))
