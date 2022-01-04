@@ -21,7 +21,7 @@ if(path.exists(UPLOAD_FOLDER) == False):
     os.mkdir(UPLOAD_FOLDER)
     print("Uploads directory created")
 
-ALLOWED_EXTENSIONS = {'wav', 'mp3',"ogg"}
+ALLOWED_EXTENSIONS = {'wav', 'mp3',"ogg","raw"}
 
 print("Extracting features..")
 features_df1 = pd.read_csv("features.csv") 
@@ -44,6 +44,13 @@ def convert_to_std_format(file_name):
         c_file_name = f_name + ".ogg"
         sf.write(c_file_name, o_data, o_sr)        
         return c_file_name
+    
+    elif (f_extn == ".raw"):
+        o_data, o_sr = sf.read(file_name,samplerate=16000,channels = 1, format='RAW',subtype='PCM_16')
+        c_file_name = f_name + ".ogg"
+        sf.write(c_file_name, o_data, o_sr)        
+        return c_file_name
+    
     else:
         return file_name
 
@@ -58,21 +65,18 @@ def check_duration(file_name):
 
 
 def get_features(file_name):
-    dur = check_duration(file_name)
-    if(dur):
-        s_file = convert_to_std_format(file_name)
-        if s_file:
-            X, sample_rate = librosa.load(s_file, mono=True,dtype='float32')
+    s_file = convert_to_std_format(file_name)
+    if s_file:
+        X, sample_rate = librosa.load(s_file, mono=True,dtype='float32')
 
-        # mfcc (mel-frequency cepstrum)
-        mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
-        mfccs_scaled = np.mean(mfccs.T,axis=0)
+    # mfcc (mel-frequency cepstrum)
+    mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
+    mfccs_scaled = np.mean(mfccs.T,axis=0)
 
-        if(s_file != file_name):
-            os.remove(s_file)        
-        return mfccs_scaled
-    else:
-        return None
+    if(s_file != file_name):
+        os.remove(s_file)        
+    return mfccs_scaled
+  
 
 def allowed_file(filename):
     return '.' in filename and \
