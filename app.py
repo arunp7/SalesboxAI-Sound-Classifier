@@ -39,7 +39,7 @@ def convert_to_std_format(file_name):
     f_name = pathlib.Path(file_name).stem
     f_extn = pathlib.Path(file_name).suffix
     
-    if( f_extn != ".ogg"):
+    if( f_extn in [".wav",".mp3"]):
         o_data, o_sr = sf.read(file_name)
         c_file_name = f_name + ".ogg"
         sf.write(c_file_name, o_data, o_sr)        
