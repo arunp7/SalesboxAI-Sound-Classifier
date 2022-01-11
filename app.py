@@ -1,3 +1,4 @@
+from logging import error
 import os
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
@@ -14,26 +15,30 @@ from os import path
 import pathlib
 from flask import json
 from werkzeug.exceptions import HTTPException
+import io
+from base64 import encodebytes
+from PIL import Image
 
-UPLOAD_FOLDER = 'uploads'
-# Check if the upload folder exists and if not create one in the root directory
-if(path.exists(UPLOAD_FOLDER) == False):
-    os.mkdir(UPLOAD_FOLDER)
-    print("Uploads directory created")
-
-ALLOWED_EXTENSIONS = {'wav', 'mp3',"ogg","raw"}
+ALLOWED_EXTENSIONS = {'wav',"ogg","raw"}
 
 print("Extracting features..")
 features_df1 = pd.read_csv("features.csv") 
 print("Extracting features done..")
+UPLOAD_FOLDER = 'uploads'
+IMAGE_FOLDER = 'images'
+# Check if the upload folder exists and if not create one in the root directory
+if(path.exists(UPLOAD_FOLDER) == False):
+    os.mkdir(UPLOAD_FOLDER)
+    print("Uploads directory created")
 
 # Create Flask App
 app = Flask(__name__)
 
 
 # Limit content size
-app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['IMAGE_FOLDER'] = IMAGE_FOLDER
 
 def convert_to_std_format(file_name):
     f_name = pathlib.Path(file_name).stem
@@ -54,6 +59,12 @@ def convert_to_std_format(file_name):
     else:
         return file_name
 
+def get_response_image(image_path):
+    pil_img = Image.open(image_path, mode='r') # reads the PIL image
+    byte_arr = io.BytesIO()
+    pil_img.save(byte_arr, format='PNG') # convert the PIL image to byte array
+    encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii') # encode as base64
+    return encoded_img
 
 def check_duration(file_name):
     y,sr = librosa.load(file_name)
@@ -62,7 +73,6 @@ def check_duration(file_name):
         return False
     else:
         return True
-
 
 def get_features(file_name):
     s_file = convert_to_std_format(file_name)
@@ -76,16 +86,20 @@ def get_features(file_name):
     if(s_file != file_name):
         os.remove(s_file)        
     return mfccs_scaled
-  
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
-# Upload files function
-@app.route('/', methods=['GET', 'POST'])
-def upload_file():
+def file_size_limit(filename):
+    size = os.path.getsize(filename)
+    if((size*.001) < 1000):
+        return True
+    else:
+        return False
+    
+@app.route('/classify', methods=['GET', 'POST'])
+def classify():
     if request.method == 'POST':
         # Check if the post request has the file part
         if 'file' not in request.files:
@@ -100,9 +114,71 @@ def upload_file():
             filename = os.path.join(app.config['UPLOAD_FOLDER'],
                 secure_filename(file.filename))
             file.save(filename)
-            return redirect(url_for('classify_and_show_results',
-                filename=filename))
-    return render_template("index.html")
+            size_ok = file_size_limit(filename)
+            
+            if(size_ok == True):
+                # Compute audio signal features
+                X, y, le = get_numpy_array(features_df1)
+                model = load_model("trained_cnn.h5")
+                prediction_feature = get_features(filename)
+                prediction_feature = np.expand_dims(np.array([prediction_feature]),axis=2)
+                predicted_vector = model.predict_classes(prediction_feature)
+                predicted_class = le.inverse_transform(predicted_vector)
+                final_pred = class_label(predicted_class[0])
+                img_name = class_label_image((predicted_class[0]))
+                img_path = os.path.join(app.config['IMAGE_FOLDER'],img_name)
+                #r_image = get_response_image(img_path)
+
+                # Delete uploaded file
+                os.remove(filename)
+                # Render results
+                result = {
+                    "Sound" : final_pred,
+                    "Image" : img_name
+                }        
+                response = app.response_class(
+                response=json.dumps(result),
+                status=200,
+                mimetype='application/json'
+                )
+                return response 
+                
+            else:
+                response = app.response_class(
+                status=416,
+                mimetype='application/json'
+                )
+                return response
+        else:
+            response = app.response_class(
+                status=400,
+                mimetype='application/json'
+            )
+            return response
+
+
+def class_label(argument):
+    classes = {
+        0: "DOORBELL",
+        1: "RAIN",
+        2: "PRESSURE-COOKER",
+        3: "BABY-CRY",
+        4: "WATER-OVERFLOW",
+        5: "BACKGROUND-SOUND"
+    }
+    return classes.get(argument, "Unidentified Sound")
+
+def class_label_image(argument):
+    classes = {
+        0: "DOORBELL.jfif",
+        1: "RAIN.jfif",
+        2: "PRESSURE-COOKER.jfif",
+        3: "BABY-CRY.jfif",
+        4: "WATER-OVERFLOW.jfif",
+        5: "BACKGROUND.jfif"
+    }
+    return classes.get(argument, "UNKNOWN.jfif")
+
 
 def get_numpy_array(features_df):
 
@@ -114,40 +190,6 @@ def get_numpy_array(features_df):
     yy = to_categorical(le.fit_transform(y))
     return X,yy,le
 
-def class_label(argument):
-    classes = {
-        0: "DOORBELL",
-        1: "RAIN",
-        2: "PRESSURE-COOKER",
-        3: "BABY-CRY",
-        4: "WATER=OVERFLOW",
-        5: "BACKGROUND-SOUND"
-    }
-    return classes.get(argument, "Unidentified Sound")
-
-# Classify and show results
-@app.route('/results', methods=['GET'])
-def classify_and_show_results():
-    filename = request.args['filename']
-    # Compute audio signal features
-    X, y, le = get_numpy_array(features_df1)
-    model = load_model("trained_cnn.h5")
-    prediction_feature = get_features(filename)
-    if(prediction_feature.size != 0):
-        prediction_feature = np.expand_dims(np.array([prediction_feature]),axis=2)
-        predicted_vector = model.predict_classes(prediction_feature)
-        predicted_class = le.inverse_transform(predicted_vector)
-        final_pred = class_label(predicted_class[0])
-
-        # Delete uploaded file
-        os.remove(filename)
-        # Render results
-        return render_template("results.html",
-            filename=filename,
-            predictions_to_render=final_pred)
-
-    else:
-        return "File size Exceeded"
 
 @app.errorhandler(HTTPException)
 def handle_exception(e):
