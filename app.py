@@ -159,25 +159,21 @@ def classify():
 
 def class_label(argument):
     classes = {
-        0: "DOORBELL",
-        1: "RAIN",
-        2: "PRESSURE-COOKER",
-        3: "BABY-CRY",
-        4: "WATER-OVERFLOW",
-        5: "BACKGROUND-SOUND"
+        0: "Pressure-Cooker",
+        1: "Baby-Cry",
+        2: "Ambient-Sound",
+        3: "Rain"
     }
     return classes.get(argument, "Unidentified Sound")
 
 def class_label_image(argument):
     classes = {
-        0: "DOORBELL.jfif",
-        1: "RAIN.jfif",
-        2: "PRESSURE-COOKER.jfif",
-        3: "BABY-CRY.jfif",
-        4: "WATER-OVERFLOW.jfif",
-        5: "BACKGROUND.jfif"
+        0: "PRESSURE-COOKER.jpg",
+        1: "BABY-CRY.jpg",
+        2: "AMBIENT-SOUND.jpg",
+        3: "RAIN.jpg"
     }
-    return classes.get(argument, "UNKNOWN.jfif")
+    return classes.get(argument, "UNKNOWN.jpg")
 
 
 def get_numpy_array(features_df):
