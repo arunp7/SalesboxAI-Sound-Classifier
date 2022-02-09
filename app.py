@@ -18,6 +18,9 @@ from werkzeug.exceptions import HTTPException
 import io
 from base64 import encodebytes
 from PIL import Image
+import logging
+logging.basicConfig(filename='app.log',  level=logging.INFO,format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
 
 ALLOWED_EXTENSIONS = {'wav',"ogg","raw"}
 
@@ -128,9 +131,10 @@ def classify():
                 img_name = class_label_image((predicted_class[0]))
                 img_path = os.path.join(app.config['IMAGE_FOLDER'],img_name)
                 #r_image = get_response_image(img_path)
+                logging.info("Filename:{}, Detected Sound: {}".format(filename,img_name))
 
                 # Delete uploaded file
-                os.remove(filename)
+                #os.remove(filename)
                 # Render results
                 result = {
                     "Sound" : final_pred,
@@ -159,19 +163,15 @@ def classify():
 
 def class_label(argument):
     classes = {
-        0: "Pressure-Cooker",
-        1: "Baby-Cry",
-        2: "Ambient-Sound",
-        3: "Rain"
+        0: "Baby-Cry",
+        1: "Rain"
     }
     return classes.get(argument, "Unidentified Sound")
 
 def class_label_image(argument):
     classes = {
-        0: "PRESSURE-COOKER.jpg",
-        1: "BABY-CRY.jpg",
-        2: "AMBIENT-SOUND.jpg",
-        3: "RAIN.jpg"
+        0: "BABY-CRY.jpg",
+        1: "RAIN.jpg"
     }
     return classes.get(argument, "UNKNOWN.jpg")
 
