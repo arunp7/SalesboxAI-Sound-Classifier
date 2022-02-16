@@ -134,22 +134,27 @@ def classify():
                 predicted_proba_vector = model.predict_proba([prediction_feature])
                 f =  predicted_proba_vector.flatten()
                 proba_baby_cry = f[0]
-                proba_rain = f[1]
+                proba_cooker = f[1]
+                proba_ambient = f[2]
 
-                if(proba_baby_cry > 0.95):
+                if(proba_baby_cry > 0.99):
                     final_pred = class_label(0)
                     probability =  proba_baby_cry               
                     img_name = class_label_image(0)
-                elif (proba_rain >= 0.99):
+                elif (proba_cooker >= 0.99):
                     final_pred = class_label(1)
-                    probability =  proba_baby_cry               
+                    probability =  proba_cooker               
                     img_name = class_label_image(1)
-                else:
+                elif (proba_ambient >= 0.95):
                     final_pred = class_label(2)
-                    probability = 0
+                    probability =  proba_ambient               
                     img_name = class_label_image(2)
+                else:
+                    final_pred = class_label(3)
+                    probability = [proba_baby_cry,proba_cooker,proba_ambient]
+                    img_name = class_label_image(3)
 
-                logging.info("Filename:{}, Detected Sound: {}".format(filename,img_name,probability))
+                logging.info("Filename:{}, Detected Sound: {} Probability: {}".format(filename,img_name,probability))
                 # Delete uploaded file
                 #os.remove(filename)
                 # Render results
@@ -180,15 +185,17 @@ def classify():
 
 def class_label(argument):
     classes = {
-        0: "Baby-Cry",
-        1: "Rain"
+       0: "Baby-Cry",
+        1: "Pressure-Cooker",
+        2: "Ambient-Sound"
     }
-    return classes.get(argument, "Unidentified Sound")
+    return classes.get(argument, "Unknown Sound")
 
 def class_label_image(argument):
     classes = {
         0: "BABY-CRY.jpg",
-        1: "RAIN.jpg"
+        1: "PRESSURE-COOKER.jpg",
+        2: "AMBIENT-SOUND.jpg"
     }
     return classes.get(argument, "UNKNOWN.jpg")
 
