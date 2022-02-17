@@ -80,7 +80,7 @@ def check_duration(file_name):
 def get_features(file_name):
     s_file = convert_to_std_format(file_name)
     if s_file:
-        X, sample_rate = librosa.load(s_file, mono=True,dtype='float32')
+        X, sample_rate = librosa.load(s_file, mono=True,dtype='float32',duration=5)
 
     # mfcc (mel-frequency cepstrum)
     mfccs = librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40)
@@ -133,25 +133,26 @@ def classify():
                 #r_image = get_response_image(img_path)
                 predicted_proba_vector = model.predict_proba([prediction_feature])
                 f =  predicted_proba_vector.flatten()
-                proba_baby_cry = f[0]
-                proba_cooker = f[1]
-                proba_ambient = f[2]
+                proba_baby_cry = round(f[0],4)
+                proba_cooker = round(f[1],4)
+                proba_ambient = round(f[2],4)
+                probability = {
+                    "Baby-cry": json.loads(str(proba_baby_cry)),
+                    "Pressure-cooker": json.loads(str(proba_cooker)),
+                    "Ambient-sound": json.loads(str(proba_ambient))
+                }
 
                 if(proba_baby_cry > 0.99):
                     final_pred = class_label(0)
-                    probability =  proba_baby_cry               
                     img_name = class_label_image(0)
                 elif (proba_cooker >= 0.99):
                     final_pred = class_label(1)
-                    probability =  proba_cooker               
                     img_name = class_label_image(1)
                 elif (proba_ambient >= 0.95):
                     final_pred = class_label(2)
-                    probability =  proba_ambient               
                     img_name = class_label_image(2)
                 else:
                     final_pred = class_label(3)
-                    probability = [proba_baby_cry,proba_cooker,proba_ambient]
                     img_name = class_label_image(3)
 
                 logging.info("Filename:{}, Detected Sound: {} Probability: {}".format(filename,img_name,probability))
@@ -159,11 +160,12 @@ def classify():
                 #os.remove(filename)
                 # Render results
                 result = {
-                    "Sound" : final_pred,
-                    "Image" : img_name
+                    "Detected Sound" : final_pred,
+                    "Image" : img_name,
+                    "Probability" : probability
                 }        
                 response = app.response_class(
-                response=json.dumps(result),
+                response=json.dumps(result,indent=2, sort_keys=True),
                 status=200,
                 mimetype='application/json'
                 )
@@ -189,7 +191,7 @@ def class_label(argument):
         1: "Pressure-Cooker",
         2: "Ambient-Sound"
     }
-    return classes.get(argument, "Unknown Sound")
+    return classes.get(argument, "Unknown")
 
 def class_label_image(argument):
     classes = {
